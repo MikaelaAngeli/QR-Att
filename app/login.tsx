@@ -1,17 +1,17 @@
+import { Link, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+  ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TextInput,
   TouchableWithoutFeedback,
-  Keyboard,
+  View,
 } from 'react-native';
-import { Link, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AppButton from '@/components/AppButton';
@@ -20,8 +20,8 @@ import { COLORS } from '@/constants/colors';
 import { signIn } from '@/lib/auth';
 
 export default function LoginScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -29,11 +29,16 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     setError(null);
+
+    if (!email.trim() || !password) {
+      setError('Email and password are required.');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const { data, error: authError } = await signIn(email.trim(), password);
-
+      const { error: authError } = await signIn(email.trim(), password);
       if (authError) {
         setError(authError.message);
       } else {
@@ -64,7 +69,7 @@ export default function LoginScreen() {
             </View>
 
             <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to record your attendance</Text>
+            <Text style={styles.subtitle}>Sign in to continue recording attendance</Text>
 
             <View style={styles.form}>
               <Text style={styles.label}>Email</Text>
@@ -105,7 +110,7 @@ export default function LoginScreen() {
             </View>
 
             <Link href="/register" style={styles.link}>
-              Don't have an account? Sign Up
+              Don&apos;t have an account? Sign Up
             </Link>
           </ScrollView>
         </TouchableWithoutFeedback>
@@ -176,9 +181,10 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   link: {
-    fontSize: 14,
-    color: COLORS.primary,
     textAlign: 'center',
+    color: COLORS.primary,
+    fontSize: 14,
     fontWeight: '600',
+    marginTop: 12,
   },
 });
