@@ -1,18 +1,20 @@
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  View,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  ActivityIndicator,
   TouchableWithoutFeedback,
-  Keyboard,
+  View,
 } from 'react-native';
 import { Link } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AppButton from '@/components/AppButton';
 import Header from '@/components/Header';
@@ -21,9 +23,12 @@ import { signUp } from '@/lib/auth';
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState<'student' | 'teacher'>('student');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -31,8 +36,8 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     setError(null);
 
-    if (!email.trim() || !password || !confirmPassword) {
-      setError('All fields are required.');
+    if (!email.trim() || !password || !confirmPassword || !fullName.trim()) {
+      setError('Name, email, and password are required.');
       return;
     }
 
@@ -49,10 +54,15 @@ export default function RegisterScreen() {
     setLoading(true);
 
     try {
-      const { error: authError } = await signUp(email.trim(), password);
+      const { data, error: authError } = await signUp(email.trim(), password, {
+        full_name: fullName.trim(),
+        role,
+      });
 
       if (authError) {
         setError(authError.message);
+      } else if (data.session) {
+        router.replace('/(tabs)');
       } else {
         setSuccess(true);
       }
@@ -96,6 +106,46 @@ export default function RegisterScreen() {
               </View>
             ) : (
               <View style={styles.form}>
+                <Text style={styles.label}>Full Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={fullName}
+                  onChangeText={setFullName}
+                  placeholder="Your name"
+                  placeholderTextColor={COLORS.textSecondary}
+                  editable={!loading}
+                />
+
+                <Text style={styles.label}>I am a...</Text>
+                <View style={styles.roleRow}>
+                  <Pressable
+                    style={[styles.roleChip, role === 'student' && styles.roleChipActive]}
+                    onPress={() => setRole('student')}
+                  >
+                    <Text
+                      style={[
+                        styles.roleChipText,
+                        role === 'student' && styles.roleChipTextActive,
+                      ]}
+                    >
+                      Student
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.roleChip, role === 'teacher' && styles.roleChipActive]}
+                    onPress={() => setRole('teacher')}
+                  >
+                    <Text
+                      style={[
+                        styles.roleChipText,
+                        role === 'teacher' && styles.roleChipTextActive,
+                      ]}
+                    >
+                      Teacher
+                    </Text>
+                  </Pressable>
+                </View>
+
                 <Text style={styles.label}>Email</Text>
                 <TextInput
                   style={styles.input}
@@ -176,16 +226,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     color: COLORS.textPrimary,
-    textAlign: 'center',
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 15,
     color: COLORS.textSecondary,
-    textAlign: 'center',
+    lineHeight: 21,
     marginBottom: 32,
   },
   form: {
@@ -200,18 +249,18 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: COLORS.card,
-    borderRadius: 14,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.border,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 15,
+    fontSize: 16,
     color: COLORS.textPrimary,
   },
   error: {
     fontSize: 14,
-    color: '#C62828',
-    textAlign: 'center',
+    color: COLORS.danger,
+    textAlign: 'left',
     marginTop: 12,
     marginBottom: 4,
   },
@@ -229,7 +278,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     padding: 20,
     backgroundColor: COLORS.card,
-    borderRadius: 14,
+    borderRadius: 10,
   },
   successTitle: {
     fontSize: 18,
@@ -243,5 +292,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 16,
+  },
+  roleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  roleChip: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+  },
+  roleChipActive: {
+    backgroundColor: '#EAF4EF',
+    borderColor: COLORS.primary,
+  },
+  roleChipText: {
+    fontSize: 15,
+    color: COLORS.textPrimary,
+    fontWeight: '600',
+  },
+  roleChipTextActive: {
+    color: COLORS.primary,
+    fontWeight: '700',
   },
 });
