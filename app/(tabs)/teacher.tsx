@@ -2,8 +2,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
-import { useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Platform,
   Pressable,
   ScrollView,
@@ -17,6 +19,8 @@ import QRCode from 'react-native-qrcode-svg';
 import AppButton from '@/components/AppButton';
 import { COLORS } from '@/constants/colors';
 import { createEvent } from '@/lib/database';
+import { useAuth } from '@/lib/auth';
+import { getProfile } from '@/lib/profiles';
 
 function toLocalISO(date: Date) {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -43,6 +47,9 @@ const QUICK_END_OPTIONS = [
 type EditTarget = 'start' | 'end';
 
 export default function TeacherScreen() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
   const [title, setTitle] = useState('');
   const [eventId, setEventId] = useState('');
   const [startDate, setStartDate] = useState(() => new Date());
@@ -55,6 +62,35 @@ export default function TeacherScreen() {
   const [message, setMessage] = useState<string | null>(null);
 
   const isAndroid = Platform.OS === 'android';
+
+  useEffect(() => {
+    let active = true;
+    setAuthorized(false);
+
+    const verifyRole = async () => {
+      if (!user) {
+        router.replace('/login');
+        return;
+      }
+
+      const profile = await getProfile(user.id);
+      if (!active) return;
+
+      if (profile?.role === 'teacher') {
+        setAuthorized(true);
+      } else {
+        router.replace('/(tabs)');
+      }
+    };
+
+    verifyRole().catch(() => {
+      if (active) router.replace('/(tabs)');
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [router, user]);
 
   const openPicker = (target: EditTarget) => {
     setMessage(null);
@@ -94,7 +130,12 @@ export default function TeacherScreen() {
     setEndDate(new Date(startDate.getTime() + ms));
   };
 
-  const handleCreateEvent = () => {
+  const handleCreateEvent = async () => {
+    if (!user) {
+      setMessage('You must be signed in to create an event.');
+      return;
+    }
+
     const event = {
       eventId: eventId.trim(),
       title: title.trim(),
@@ -112,19 +153,30 @@ export default function TeacherScreen() {
       return;
     }
 
-    createEvent(event).then(() => {
-      setMessage('Event saved! Scan the QR with the Scan tab to test it.');
-      // Ensure the payload has the correct format for attendance QR codes
-      const attendancePayload = {
-        v: 1,
-        event: event.eventId,
-        title: event.title,
-        start: event.start,
-        end: event.end,
-      };
-      setPayload(JSON.stringify(attendancePayload));
-    });
+    const { error } = await createEvent(event);
+    if (error) {
+      setMessage(error);
+      return;
+    }
+
+    setMessage('Event saved! Scan the QR with the Scan tab to test it.');
+    const attendancePayload = {
+      v: 1,
+      event: event.eventId,
+      title: event.title,
+      start: event.start,
+      end: event.end,
+    };
+    setPayload(JSON.stringify(attendancePayload));
   };
+
+  if (!authorized) {
+    return (
+      <View style={[styles.container, styles.accessCheck]}>
+        <ActivityIndicator color={COLORS.primary} />
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -241,6 +293,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  accessCheck: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   content: {
     paddingHorizontal: 24,
     paddingTop: 24,
@@ -268,8 +324,11 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: COLORS.card,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
@@ -332,11 +391,8 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 20,
     alignItems: 'center',
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   resultTitle: {
     fontSize: 15,

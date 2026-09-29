@@ -40,8 +40,16 @@ export function useAuth(): AuthState {
   };
 }
 
-export async function signUp(email: string, password: string) {
-  const { data, error } = await supabase.auth.signUp({ email, password });
+export async function signUp(
+  email: string,
+  password: string,
+  metadata?: { full_name: string; role: 'student' | 'teacher' }
+) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: metadata ? { data: metadata } : undefined,
+  });
   if (!error && data.session) {
     setAuth(data.session);
   }
@@ -57,7 +65,11 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signOut() {
-  setAuth(null);
-  supabase.auth.signOut().catch(() => {});
-  return { error: null };
+  const { error } = await supabase.auth.signOut();
+
+  if (!error) {
+    setAuth(null);
+  }
+
+  return { error };
 }

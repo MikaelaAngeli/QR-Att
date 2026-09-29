@@ -39,12 +39,21 @@ export default function ScanScreen() {
   }
 
   const handleBarcodeScanned = ({ data }: { data: string }) => {
+    if (!user) {
+      setScanned(true);
+      setMessage('You must be signed in to record attendance.');
+      setSuccess(false);
+      return;
+    }
+
     setScanned(true);
     setLastData(data);
-    const studentId = user?.id ?? 'unknown';
-    registerAttendance(data, studentId).then((result) => {
+    registerAttendance(data, user.id).then((result) => {
       setMessage(result.message);
       setSuccess(result.success);
+    }).catch(() => {
+      setMessage('Could not record attendance. Please try again.');
+      setSuccess(false);
     });
   };
 
@@ -142,8 +151,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontWeight: '600'
   },
-  success: { color: '#2E7D32' },   // green — attendance recorded
-  error: { color: '#C62828' },   // red — failed / duplicate
+  success: { color: '#2E7D32' },
+  error: { color: '#C62828' },
   scanData: {
     fontSize: 12,
     color: COLORS.textSecondary,
